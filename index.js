@@ -7,13 +7,16 @@ async function main() {
   const data = await parseFile("input.txt");
 
   for (let i = 0; i < data.length; i++) {
+    const iVal = data[i];
+
     for (let j = i; j < data.length; j++) {
+      const jVal = data[j];
+      const runningSum = iVal + jVal;
+
       for (let k = j; k < data.length; k++) {
-        const iVal = data[i];
-        const jVal = data[j];
         const kVal = data[k];
 
-        if (iVal + jVal + kVal == 2020) {
+        if (runningSum + kVal == 2020) {
           console.log(iVal, jVal, kVal);
           console.log(iVal * jVal * kVal);
         }

@@ -3,6 +3,7 @@ const fs = require("fs");
 main().catch((error) => console.log(error.stack));
 
 async function main() {
+  console.log("----");
   const data = await parseFile("input.txt");
 
   for (let i = 0; i < data.length; i++) {

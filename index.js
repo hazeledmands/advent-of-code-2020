@@ -1,26 +1,45 @@
 const fs = require("fs");
 
 async function main() {
-  const data = await parseFile("input.txt");
+  const lines = await parseFile("input.txt");
+  const data = lines.map(parseLine);
 
-  for (let i = 0; i < data.length; i++) {
-    const iVal = data[i];
+  let validCount = 0;
 
-    for (let j = i; j < data.length; j++) {
-      const jVal = data[j];
-      const runningSum = iVal + jVal;
-      if (runningSum > 2020) continue;
-
-      for (let k = j; k < data.length; k++) {
-        const kVal = data[k];
-
-        if (runningSum + kVal == 2020) {
-          console.log(iVal, jVal, kVal);
-          console.log(iVal * jVal * kVal);
-        }
-      }
-    }
+  for (const { start, end, char, password } of data) {
+    let count = 0;
+    if (password[start] == char) count++;
+    if (password[end] == char) count++;
+    if (count === 1) validCount++;
   }
+
+  console.log(validCount);
+}
+
+const pattern = [
+  { re: /\d+/, parse: (s) => parseInt(s) - 1, name: "start" },
+  { re: /-/ },
+  { re: /\d+/, parse: (s) => parseInt(s) - 1, name: "end" },
+  { re: /\s/ },
+  { re: /\w/, name: "char" },
+  { re: /: / },
+  { re: /.*/, name: "password" },
+];
+function parseLine(input) {
+  const ret = { input };
+  let remainder = input;
+
+  for (const step of pattern) {
+    const match = remainder.match(step.re);
+    if (match == null || match.index !== 0)
+      throw new Error(`input ${input} did not match expectations!`);
+    remainder = remainder.slice(match[0].length);
+    let val = match[0];
+    if (step.parse) val = step.parse(val);
+    if (step.name) ret[step.name] = val;
+  }
+
+  return ret;
 }
 
 async function parseFile(filename) {
@@ -29,11 +48,11 @@ async function parseFile(filename) {
   process.stdout.write(`${result.length} chars, `);
   const lines = result.split("\n");
   process.stdout.write(`${lines.length} lines\n`);
-  return lines.map((v) => parseInt(v));
+  return lines;
 }
 
 const startTime = Date.now();
-console.log("----");
+console.log(`---- ${new Date()}`);
 main()
   .catch((error) => console.log(error.stack))
   .finally(() => console.log(`Done in ${Date.now() - startTime}ms`));

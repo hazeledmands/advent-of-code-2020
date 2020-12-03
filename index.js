@@ -1,54 +1,35 @@
-const fs = require("fs");
+import { parseFile } from "./text-parsing.js";
 
 async function main() {
   const lines = await parseFile("input.txt");
-  const data = lines.map(parseLine);
 
-  let validCount = 0;
+  const slopes = [
+    [1, 1],
+    [1, 3],
+    [1, 5],
+    [1, 7],
+    [2, 1],
+  ];
 
-  for (const { start, end, char, password } of data) {
-    let count = 0;
-    if (password[start] == char) count++;
-    if (password[end] == char) count++;
-    if (count === 1) validCount++;
+  const treeCounts = [];
+  for (let [rowInc, colInc] of slopes) {
+    let row = rowInc;
+    let col = colInc;
+    let trees = 0;
+
+    while (row < lines.length) {
+      if (lines[row][col] == "#") ++trees;
+      col = (col + colInc) % lines[row].length;
+      row += rowInc;
+    }
+
+    treeCounts.push(trees);
   }
 
-  console.log(validCount);
-}
-
-const pattern = [
-  { re: /\d+/, parse: (s) => parseInt(s) - 1, name: "start" },
-  { re: /-/ },
-  { re: /\d+/, parse: (s) => parseInt(s) - 1, name: "end" },
-  { re: /\s/ },
-  { re: /\w/, name: "char" },
-  { re: /: / },
-  { re: /.*/, name: "password" },
-];
-function parseLine(input) {
-  const ret = { input };
-  let remainder = input;
-
-  for (const step of pattern) {
-    const match = remainder.match(step.re);
-    if (match == null || match.index !== 0)
-      throw new Error(`input ${input} did not match expectations!`);
-    remainder = remainder.slice(match[0].length);
-    let val = match[0];
-    if (step.parse) val = step.parse(val);
-    if (step.name) ret[step.name] = val;
-  }
-
-  return ret;
-}
-
-async function parseFile(filename) {
-  process.stdout.write(`Reading from ${filename}. `);
-  const result = fs.readFileSync(filename, { encoding: "utf-8" });
-  process.stdout.write(`${result.length} chars, `);
-  const lines = result.split("\n");
-  process.stdout.write(`${lines.length} lines\n`);
-  return lines;
+  let total = 1;
+  console.log(treeCounts);
+  for (let treeCount of treeCounts) total *= treeCount;
+  console.log(total);
 }
 
 const startTime = Date.now();

@@ -1,3 +1,5 @@
+import chalk from "chalk";
+import _ from "lodash";
 import { parseFile } from "./text-parsing.js";
 
 async function main() {
@@ -27,13 +29,30 @@ async function main() {
   }
 
   let total = 1;
-  console.log(treeCounts);
+  log(treeCounts);
   for (let treeCount of treeCounts) total *= treeCount;
-  console.log(total);
+  log(total);
 }
 
-const startTime = Date.now();
-console.log(`---- ${new Date()}`);
+function log() {
+  console.log(...arguments);
+}
+
+const startDate = new Date();
+log(
+  // random so it's easier to see that something changed in the console:
+  _.repeat("\n", _.random(1, 4))
+);
+log(
+  chalk.underline(
+    [
+      startDate.getHours().toString().padStart(2, 0),
+      startDate.getMinutes().toString().padStart(2, 0),
+      startDate.getSeconds().toString().padStart(2, 0),
+    ].join(":") + _.repeat(" ", 50)
+  )
+);
+
 main()
-  .catch((error) => console.log(error.stack))
-  .finally(() => console.log(`Done in ${Date.now() - startTime}ms`));
+  .catch((error) => log(error.stack))
+  .finally(() => log(`Done in ${Date.now() - startDate.valueOf()}ms`));

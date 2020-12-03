@@ -1,11 +1,12 @@
 import fs from "fs";
+import chalk from "chalk";
 
 export async function parseFile(filename) {
-  process.stdout.write(`Reading from ${filename}. `);
+  process.stdout.write(`Reading from ${chalk.red(filename)}. `);
   const result = fs.readFileSync(filename, { encoding: "utf-8" });
   process.stdout.write(`${result.length} chars, `);
   const lines = result.split("\n");
-  process.stdout.write(`${lines.length} lines\n`);
+  process.stdout.write(`${lines.length} lines.\n`);
   return lines;
 }
 

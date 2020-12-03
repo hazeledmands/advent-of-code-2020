@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "watch": "watch 'node index.js' . -d"
+    "watch": "watch 'node index.js' . --ignoreDotFiles --ignoreUnreadable --interval=1"
   },
   "keywords": [],
   "author": "",
@@ -14,5 +14,8 @@
     "watch": "^1.0.2"
   },
   "type": "module",
-  "dependencies": {}
+  "dependencies": {
+    "chalk": "^4.1.0",
+    "lodash": "^4.17.20"
+  }
 }

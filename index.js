@@ -13,7 +13,24 @@ const grammar = {
   entry: [["attribute", "attributeSeparator", "entry"], ["attribute"]],
   attribute: [["key", "val"]],
 };
+
+const validateRange = (str, minInclusive, maxInclusive) => {
+  const num = parseInt(str);
+  return !isNaN(num) && num >= minInclusive && num <= maxInclusive;
+};
+
 const requiredAttributes = ["byr", "iyr", "eyr", "hgt", "hcl", "ecl", "pid"];
+const validators = {
+  byr: (val) => val.match(/^\d{4}$/) && validateRange(val, 1920, 2002),
+  iyr: (val) => val.match(/^\d{4}$/) && validateRange(val, 2010, 2020),
+  eyr: (val) => val.match(/^\d{4}$/) && validateRange(val, 2020, 2030),
+  hgt: (val) =>
+    (val.match(/^\d{3}cm$/) && validateRange(val, 150, 193)) ||
+    (val.match(/^\d{2}in$/) && validateRange(val, 59, 76)),
+  hcl: (val) => val.match(/^#[0-9a-f]{6}$/),
+  ecl: (val) => val.match(/^amb|blu|brn|gry|grn|hzl|oth$/),
+  pid: (val) => val.match(/^\d{9}$/),
+};
 
 async function main() {
   const file = await readFile("input.txt");
@@ -32,8 +49,12 @@ async function main() {
         }, {})
     );
 
-  const validEntries = entries.filter((entry) =>
-    requiredAttributes.every((attribute) => entry[attribute] != null)
+  const validEntries = entries.filter(
+    (entry) =>
+      requiredAttributes.every((attribute) => entry[attribute] != null) &&
+      Object.keys(entry).every(
+        (key) => validators[key] == null || validators[key](entry[key])
+      )
   );
 
   console.log(validEntries.length);

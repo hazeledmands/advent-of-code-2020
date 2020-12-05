@@ -2,7 +2,7 @@ import chalk from "chalk";
 import _ from "lodash";
 import { readFile, tokenize, parseGrammar } from "./text-parsing.js";
 
-const charMap = (dict, range) => (str) => {
+const charMap = (dict) => (str) => {
   return parseInt(
     str
       .split("")
@@ -16,12 +16,12 @@ const matchers = [
   {
     type: "rowInstruction",
     re: /(F|B){7}/,
-    value: charMap({ F: 0, B: 1 }, 128),
+    value: charMap({ F: 0, B: 1 }),
   },
   {
     type: "columnInstruction",
     re: /(L|R){3}/,
-    value: charMap({ L: 0, R: 1 }, 8),
+    value: charMap({ L: 0, R: 1 }),
   },
   { type: "separator", re: /\n/ },
 ];
@@ -33,13 +33,9 @@ const grammar = {
   },
   ticket: {
     syntax: [["rowInstruction", "columnInstruction"]],
-    value: ({ parts }) => {
-      const [row, col] = parts.map((p) => _.pick(p, "code", "value"));
-      return {
-        row,
-        col,
-        seatId: row.value * 8 + col.value,
-      };
+    value: ({ parts, code }) => {
+      const [row, col] = _.map(parts, "value");
+      return { code, row, col, seatId: row * 8 + col };
     },
   },
 };
@@ -48,8 +44,14 @@ async function main() {
   const file = await readFile("input.txt");
   const tokens = tokenize(file, matchers);
   const { value: tickets } = parseGrammar(tokens, grammar, "ticketList");
-  console.log(tickets);
-  console.log(Math.max(...tickets.map((t) => t.seatId)));
+  console.log(
+    _(tickets)
+      .groupBy((t) => t.row)
+      .values()
+      .filter((row) => row.length < 8)
+      .map((row) => _.sortBy(row, "seatId"))
+      .value()
+  );
 }
 
 function log() {

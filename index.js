@@ -1,37 +1,42 @@
 import chalk from "chalk";
 import _ from "lodash";
-import { parseFile } from "./text-parsing.js";
+import { readFile, tokenize, parseGrammar } from "./text-parsing.js";
+
+const matchers = [
+  { type: "key", re: /\w{3}:/, value: (str) => str.slice(0, 3) },
+  { type: "val", re: /[^\s:]+/ },
+  { type: "entrySeparator", re: /\n{2}/ },
+  { type: "attributeSeparator", re: / |\n/ },
+];
+const grammar = {
+  entryList: [["entry", "entrySeparator", "entryList"], ["entry"]],
+  entry: [["attribute", "attributeSeparator", "entry"], ["attribute"]],
+  attribute: [["key", "val"]],
+};
+const requiredAttributes = ["byr", "iyr", "eyr", "hgt", "hcl", "ecl", "pid"];
 
 async function main() {
-  const lines = await parseFile("input.txt");
+  const file = await readFile("input.txt");
+  const tokens = tokenize(file, matchers);
+  const ast = parseGrammar(tokens, grammar, "entryList");
 
-  const slopes = [
-    [1, 1],
-    [1, 3],
-    [1, 5],
-    [1, 7],
-    [2, 1],
-  ];
+  const entries = ast.parts
+    .filter(({ type }) => type === "entry")
+    .map((entry) =>
+      entry.parts
+        .filter(({ type }) => type === "attribute")
+        .reduce((memo, attribute) => {
+          const [key, value] = attribute.parts;
+          memo[key.value] = value.value;
+          return memo;
+        }, {})
+    );
 
-  const treeCounts = [];
-  for (let [rowInc, colInc] of slopes) {
-    let row = rowInc;
-    let col = colInc;
-    let trees = 0;
+  const validEntries = entries.filter((entry) =>
+    requiredAttributes.every((attribute) => entry[attribute] != null)
+  );
 
-    while (row < lines.length) {
-      if (lines[row][col] == "#") ++trees;
-      col = (col + colInc) % lines[row].length;
-      row += rowInc;
-    }
-
-    treeCounts.push(trees);
-  }
-
-  let total = 1;
-  log(treeCounts);
-  for (let treeCount of treeCounts) total *= treeCount;
-  log(total);
+  console.log(validEntries.length);
 }
 
 function log() {
@@ -54,5 +59,5 @@ log(
 );
 
 main()
-  .catch((error) => log(error.stack))
+  .catch((error) => log(`\n\n${error.stack}`))
   .finally(() => log(`Done in ${Date.now() - startDate.valueOf()}ms`));

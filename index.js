@@ -1,51 +1,42 @@
 import chalk from "chalk";
 import _ from "lodash";
-import { readFile, tokenize, parseGrammar } from "./text-parsing.js";
+import { parseFile } from "./text-parsing.js";
 
-const charMap = (dict) => (str) => {
-  return parseInt(
-    str
-      .split("")
-      .map((char) => dict[char])
-      .join(""),
-    2
-  );
-};
-
-const matchers = [
-  {
-    type: "rowInstruction",
-    re: /(F|B){7}/,
-    value: charMap({ F: 0, B: 1 }),
-  },
-  {
-    type: "columnInstruction",
-    re: /(L|R){3}/,
-    value: charMap({ L: 0, R: 1 }),
-  },
-  { type: "separator", re: /\n/ },
-];
-const grammar = {
-  ticketList: {
-    syntax: [["ticket", "separator", "ticketList"], ["ticket"]],
-    value: ({ parts }) =>
-      parts.filter((p) => p.type === "ticket").map((p) => p.value),
-  },
-  ticket: {
-    syntax: [["rowInstruction", "columnInstruction"]],
-    value: ({ parts, code }) => {
-      const [row, col] = _.map(parts, "value");
-      return { code, row, col, seatId: row * 8 + col };
-    },
-  },
+const toBool = (dict) => (str) => {
+  const mapped = str
+    .split("")
+    .map((char) => dict[char])
+    .join("");
+  return parseInt(mapped, 2);
 };
 
 async function main() {
-  const file = await readFile("input.txt");
-  const tokens = tokenize(file, matchers);
-  const { value: tickets } = parseGrammar(tokens, grammar, "ticketList");
+  const ast = await parseFile({
+    path: "./input.txt",
+    lexemes: [
+      { type: "row", re: /(F|B){7}/, value: toBool({ F: 0, B: 1 }) },
+      { type: "col", re: /(L|R){3}/, value: toBool({ L: 0, R: 1 }) },
+      { type: "separator", re: /\n/ },
+    ],
+    grammar: {
+      ticketList: {
+        syntax: [["ticket", "separator", "ticketList"], ["ticket"]],
+        value: (l) =>
+          _(l.parts).filter({ type: "ticket" }).map("value").value(),
+      },
+      ticket: {
+        syntax: [["row", "col"]],
+        value: ({ parts, code }) => {
+          const [row, col] = _.map(parts, "value");
+          return { code, row, col, seatId: row * 8 + col };
+        },
+      },
+    },
+    entry: "ticketList",
+  });
+
   console.log(
-    _(tickets)
+    _(ast.value)
       .groupBy((t) => t.row)
       .values()
       .filter((row) => row.length < 8)

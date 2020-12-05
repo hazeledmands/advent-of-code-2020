@@ -2,73 +2,79 @@ import _ from "lodash";
 import fs from "fs";
 import chalk from "chalk";
 
-export async function readFile(filename) {
-  process.stdout.write(`Reading from ${chalk.red(filename)}. `);
-  const result = fs.readFileSync(filename, { encoding: "utf-8" });
-  process.stdout.write(`${result.length} chars, `);
-  process.stdout.write(`${result.split("\n").length} lines.\n`);
-  return result;
+export async function parseFile({ path, lexemes, grammar, entry }) {
+  const file = await readFile(path);
+  const tokens = tokenize(file, lexemes);
+  return parseGrammar(file, tokens, grammar, entry);
 }
 
-export function tokenize(input, matchers) {
+export async function readFile(filepath) {
+  process.stdout.write(`Reading from ${chalk.red(filepath)}. `);
+  const code = fs.readFileSync(filepath, { encoding: "utf-8" });
+  const lines = code.split("\n");
+  process.stdout.write(`${code.length} chars, ${lines.length} lines.\n`);
+  return { path: filepath, lines, code };
+}
+
+export function tokenize(file, lexemes) {
+  const { code: input } = file;
+
   const tokens = [];
   let readHead = 0;
+  let ln = 1;
+  let col = 1;
 
   tokens: while (readHead < input.length) {
     const remain = input.slice(readHead);
-    for (const { re, type, value: valueFn } of matchers) {
+    for (const { re, type, value: valueFn } of lexemes) {
       const result = remain.match(re);
       if (result == null || result.index != 0) continue;
 
       const code = result[0];
-      tokens.push({ type, code, value: valueFn ? valueFn(code) : code });
       readHead += code.length;
+
+      const newLines = Array.from(code.matchAll(/\n[^\n]*/g));
+      let endCol;
+      if (newLines.length > 0) endCol = _.last(newLines)[0].length;
+      else endCol = col + code.length;
+
+      tokens.push({
+        type,
+        code,
+        value: valueFn ? valueFn(code) : code,
+        start: { ln, col },
+        end: { ln: ln + newLines.length, col: endCol },
+      });
+
+      ln += newLines.length;
+      col = endCol;
       continue tokens;
     }
 
-    const beforeText = input.slice(0, readHead).split("\n");
-    const lineNumber = beforeText.length;
-    const charNumber = _.last(beforeText).length;
-    const afterText = input.slice(readHead).split("\n");
-    const badLine = _.last(beforeText) + _.first(afterText);
-    throw new Error(
-      [
-        `Could not parse line ${lineNumber} char ${charNumber}:`,
-        badLine,
-        `${_.repeat(" ", charNumber)}^`,
-      ].join("\n")
-    );
+    throw new LineNumberError({
+      message: `unparsable character ${chalk.red(input[readHead])}`,
+      file,
+      ln,
+      col,
+    });
   }
 
   return tokens;
 }
 
-export function parseGrammar(tokens, grammar, expectedType = "program") {
+export function parseGrammar(file, tokens, grammar, expectedType = "program") {
   const remainingTokensM = new WeakMap();
 
   const ast = parse(tokens, expectedType);
 
   const remainingTokens = remainingTokensM.get(ast);
   if (remainingTokens.length > 0) {
-    const successLength = tokens.length - remainingTokens.length;
-    const successTokens = tokens.slice(0, successLength);
-    const successCode = successTokens.map(({ code }) => code).join("");
-    const successLines = successCode.split("\n");
-    const remainCode = remainingTokens.map(({ code }) => code).join("");
-    const remainLines = remainCode.split("\n");
-    const failLocLine = successLines.length;
-    const failLocChar = _.last(successLines).length;
-    const nextToken = remainingTokens[0];
-
-    throw new Error(
-      [
-        `Parsing failed at ln ${failLocLine}, col ${
-          failLocChar + 1
-        }: unexpected token ${nextToken.type}`,
-        `${_.last(successLines)}${_.first(remainLines)}`,
-        `${_.repeat(" ", failLocChar)}^`,
-      ].join("\n")
-    );
+    const failedAtToken = _.first(remainingTokens);
+    throw new LineNumberError({
+      message: `unexpected token ${chalk.red(failedAtToken.type)}`,
+      file,
+      ...failedAtToken.start,
+    });
   }
 
   return ast;
@@ -131,6 +137,20 @@ export function parseGrammar(tokens, grammar, expectedType = "program") {
     }
 
     return null;
+  }
+}
+
+class LineNumberError extends Error {
+  constructor({ message, file, ln, col }) {
+    const loc = chalk.bold([file.path, ln, col].join(":"));
+
+    super(
+      [
+        `Parsing failed at ${loc}: ${message}`,
+        file.lines[ln - 1],
+        `${_.repeat(" ", col - 1)}^`,
+      ].join("\n")
+    );
   }
 }
 

@@ -82,7 +82,7 @@ export function parseGrammar(tokens, grammar, expectedType = "program") {
       code: debugTokens(tokens),
     });
 
-    option: for (const option of expectedClause) {
+    option: for (const option of expectedClause.syntax) {
       let remainingTokens = tokens;
       const resultParts = [];
 
@@ -122,6 +122,10 @@ export function parseGrammar(tokens, grammar, expectedType = "program") {
         parts: resultParts,
         code: resultParts.map(({ code }) => code).join(""),
       };
+
+      if (expectedClause.value != null)
+        clause.value = expectedClause.value(clause);
+
       remainingTokensM.set(clause, remainingTokens);
       return clause;
     }
@@ -133,7 +137,7 @@ export function parseGrammar(tokens, grammar, expectedType = "program") {
 function debugTokens(tokens) {
   return (
     tokens
-      .map((t) => `${t.type}(${t.value})`)
+      .map((t) => `${t.type}(${t.code})`)
       .join(" ")
       .slice(0, 100) + "..."
   );

@@ -2,62 +2,54 @@ import chalk from "chalk";
 import _ from "lodash";
 import { readFile, tokenize, parseGrammar } from "./text-parsing.js";
 
+const charMap = (dict, range) => (str) => {
+  return parseInt(
+    str
+      .split("")
+      .map((char) => dict[char])
+      .join(""),
+    2
+  );
+};
+
 const matchers = [
-  { type: "key", re: /\w{3}:/, value: (str) => str.slice(0, 3) },
-  { type: "val", re: /[^\s:]+/ },
-  { type: "entrySeparator", re: /\n{2}/ },
-  { type: "attributeSeparator", re: / |\n/ },
+  {
+    type: "rowInstruction",
+    re: /(F|B){7}/,
+    value: charMap({ F: 0, B: 1 }, 128),
+  },
+  {
+    type: "columnInstruction",
+    re: /(L|R){3}/,
+    value: charMap({ L: 0, R: 1 }, 8),
+  },
+  { type: "separator", re: /\n/ },
 ];
 const grammar = {
-  entryList: [["entry", "entrySeparator", "entryList"], ["entry"]],
-  entry: [["attribute", "attributeSeparator", "entry"], ["attribute"]],
-  attribute: [["key", "val"]],
-};
-
-const validateRange = (str, minInclusive, maxInclusive) => {
-  const num = parseInt(str);
-  return !isNaN(num) && num >= minInclusive && num <= maxInclusive;
-};
-
-const requiredAttributes = ["byr", "iyr", "eyr", "hgt", "hcl", "ecl", "pid"];
-const validators = {
-  byr: (val) => val.match(/^\d{4}$/) && validateRange(val, 1920, 2002),
-  iyr: (val) => val.match(/^\d{4}$/) && validateRange(val, 2010, 2020),
-  eyr: (val) => val.match(/^\d{4}$/) && validateRange(val, 2020, 2030),
-  hgt: (val) =>
-    (val.match(/^\d{3}cm$/) && validateRange(val, 150, 193)) ||
-    (val.match(/^\d{2}in$/) && validateRange(val, 59, 76)),
-  hcl: (val) => val.match(/^#[0-9a-f]{6}$/),
-  ecl: (val) => val.match(/^amb|blu|brn|gry|grn|hzl|oth$/),
-  pid: (val) => val.match(/^\d{9}$/),
+  ticketList: {
+    syntax: [["ticket", "separator", "ticketList"], ["ticket"]],
+    value: ({ parts }) =>
+      parts.filter((p) => p.type === "ticket").map((p) => p.value),
+  },
+  ticket: {
+    syntax: [["rowInstruction", "columnInstruction"]],
+    value: ({ parts }) => {
+      const [row, col] = parts.map((p) => _.pick(p, "code", "value"));
+      return {
+        row,
+        col,
+        seatId: row.value * 8 + col.value,
+      };
+    },
+  },
 };
 
 async function main() {
   const file = await readFile("input.txt");
   const tokens = tokenize(file, matchers);
-  const ast = parseGrammar(tokens, grammar, "entryList");
-
-  const entries = ast.parts
-    .filter(({ type }) => type === "entry")
-    .map((entry) =>
-      entry.parts
-        .filter(({ type }) => type === "attribute")
-        .reduce((memo, attribute) => {
-          const [key, value] = attribute.parts;
-          memo[key.value] = value.value;
-          return memo;
-        }, {})
-    );
-
-  const validEntries = entries.filter(
-    (entry) =>
-      requiredAttributes.every((attribute) => entry[attribute] != null) &&
-      Object.keys(entry).every(
-        (key) => validators[key] == null || validators[key](entry[key])
-      )
-  );
-
-  console.log(validEntries.length);
+  const { value: tickets } = parseGrammar(tokens, grammar, "ticketList");
+  console.log(tickets);
+  console.log(Math.max(...tickets.map((t) => t.seatId)));
 }
 
 function log() {

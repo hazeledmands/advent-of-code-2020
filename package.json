@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "solve": "node index.js",
     "watch": "watch 'node index.js' . --ignoreDotFiles --ignoreUnreadable --interval=1"
   },
   "keywords": [],

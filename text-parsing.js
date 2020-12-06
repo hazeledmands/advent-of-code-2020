@@ -3,6 +3,7 @@ import fs from "fs";
 import chalk from "chalk";
 
 export async function parseFile({ path, lexemes, grammar, entry }) {
+  validateGrammar({ grammar, lexemes });
   const file = await readFile(path);
   const tokens = tokenize(file, lexemes);
   return parseGrammar(file, tokens, grammar, entry);
@@ -61,6 +62,27 @@ export function tokenize(file, lexemes) {
   }
 
   return tokens;
+}
+
+function validateGrammar({ lexemes, grammar }) {
+  const validSubClauses = new Set();
+  for (const lexeme of lexemes) validSubClauses.add(lexeme.type);
+  for (const name of Object.keys(grammar)) validSubClauses.add(name);
+  console.log(validSubClauses);
+
+  _.forEach(grammar, (clause, name) => {
+    for (const option of clause.syntax) {
+      for (const subClause of option) {
+        if (!validSubClauses.has(subClause)) {
+          throw new Error(
+            `Grammar rule for ${chalk.blue(
+              name
+            )} references invalid sub-clause ${chalk.red(subClause)}`
+          );
+        }
+      }
+    }
+  });
 }
 
 export function parseGrammar(file, tokens, grammar, expectedType = "program") {

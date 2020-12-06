@@ -12,11 +12,9 @@ async function main() {
     grammar: {
       groupList: {
         syntax: [["group", "separator", "separator", "groupList"], ["group"]],
-        value: (l) => _.map(l.parts, "value"),
       },
       group: {
         syntax: [["person", "separator", "group"], ["person"]],
-        value: (g) => _.map(g.parts, "value"),
       },
     },
     entry: "groupList",

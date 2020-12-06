@@ -154,6 +154,7 @@ export function parseGrammar(file, tokens, grammar, expectedType = "program") {
 
       if (expectedClause.value != null)
         clause.value = expectedClause.value(clause);
+      else clause.value = _.map(resultParts, "value");
 
       remainingTokensM.set(clause, remainingTokens);
       return clause;

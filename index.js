@@ -2,47 +2,35 @@ import chalk from "chalk";
 import _ from "lodash";
 import { parseFile } from "./text-parsing.js";
 
-const toBool = (dict) => (str) => {
-  const mapped = str
-    .split("")
-    .map((char) => dict[char])
-    .join("");
-  return parseInt(mapped, 2);
-};
-
 async function main() {
   const ast = await parseFile({
     path: "./input.txt",
     lexemes: [
-      { type: "row", re: /(F|B){7}/, value: toBool({ F: 0, B: 1 }) },
-      { type: "col", re: /(L|R){3}/, value: toBool({ L: 0, R: 1 }) },
+      { type: "person", re: /\w+/, value: (p) => p.split("") },
       { type: "separator", re: /\n/ },
     ],
     grammar: {
-      ticketList: {
-        syntax: [["ticket", "separator", "ticketList"], ["ticket"]],
-        value: (l) =>
-          _(l.parts).filter({ type: "ticket" }).map("value").value(),
+      groupList: {
+        syntax: [["group", "separator", "separator", "groupList"], ["group"]],
+        value: (l) => _(l.parts).filter({ type: "group" }).map("value").value(),
       },
-      ticket: {
-        syntax: [["row", "col"]],
-        value: ({ parts, code }) => {
-          const [row, col] = _.map(parts, "value");
-          return { code, row, col, seatId: row * 8 + col };
+      group: {
+        syntax: [["person", "separator", "group"], ["person"]],
+        value: (g) => {
+          const parts = _.filter(g.parts, { type: "person" });
+          return _(parts)
+            .map("value")
+            .flatten()
+            .countBy()
+            .filter((count) => count === parts.length)
+            .value().length;
         },
       },
     },
-    entry: "ticketList",
+    entry: "groupList",
   });
 
-  console.log(
-    _(ast.value)
-      .groupBy((t) => t.row)
-      .values()
-      .filter((row) => row.length < 8)
-      .map((row) => _.sortBy(row, "seatId"))
-      .value()
-  );
+  console.log(_.sum(ast.value));
 }
 
 function log() {

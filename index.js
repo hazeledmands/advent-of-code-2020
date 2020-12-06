@@ -7,30 +7,22 @@ async function main() {
     path: "./input.txt",
     lexemes: [
       { type: "person", re: /\w+/, value: (p) => p.split("") },
-      { type: "separator", re: /\n/ },
+      { type: "separator", re: /\n/, ignore: true },
     ],
     grammar: {
       groupList: {
         syntax: [["group", "separator", "separator", "groupList"], ["group"]],
-        value: (l) => _(l.parts).filter({ type: "group" }).map("value").value(),
+        value: (l) => _.map(l.parts, "value"),
       },
       group: {
         syntax: [["person", "separator", "group"], ["person"]],
-        value: (g) => {
-          const parts = _.filter(g.parts, { type: "person" });
-          return _(parts)
-            .map("value")
-            .flatten()
-            .countBy()
-            .filter((count) => count === parts.length)
-            .value().length;
-        },
+        value: (g) => _.map(g.parts, "value"),
       },
     },
     entry: "groupList",
   });
 
-  console.log(_.sum(ast.value));
+  console.log(ast.value);
 }
 
 function log() {

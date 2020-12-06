@@ -26,7 +26,7 @@ export function tokenize(file, lexemes) {
 
   tokens: while (readHead < input.length) {
     const remain = input.slice(readHead);
-    for (const { re, type, value: valueFn } of lexemes) {
+    for (const { re, type, value: valueFn, ignore } of lexemes) {
       const result = remain.match(re);
       if (result == null || result.index != 0) continue;
 
@@ -44,6 +44,7 @@ export function tokenize(file, lexemes) {
         value: valueFn ? valueFn(code) : code,
         start: { ln, col },
         end: { ln: ln + newLines.length, col: endCol },
+        ignore,
       });
 
       ln += newLines.length;
@@ -98,7 +99,7 @@ export function parseGrammar(file, tokens, grammar, expectedType = "program") {
         const token = remainingTokens[0];
         if (token != null && token.type == part) {
           debugLog(chalk.green("match"), token);
-          resultParts.push(token);
+          if (!token.ignore) resultParts.push(token);
           remainingTokens = remainingTokens.slice(1);
           continue parts;
         }

@@ -17,6 +17,14 @@ async function main() {
 
     new Rule("RuleList", {
       syntax: [["Rule", "newLine", "RuleList"], ["Rule"]],
+      evaluate: (l) => {
+        const rules = new Map();
+        for (const rule of l.parts) {
+          const [bag, contents] = rule.value();
+          rules.set(bag, contents);
+        }
+        return rules;
+      },
     }),
     new Rule("Rule", {
       syntax: [["Bag", "space", "contain", "space", "BagList", "period"]],
@@ -53,27 +61,17 @@ async function main() {
   const rules = ast.value();
   console.log(rules);
 
-  const invertedList = new Map();
-  for (let [bag, contents] of rules) {
-    for (let [key] of contents.entries()) {
-      if (!invertedList.has(key)) invertedList.set(key, new Set());
-      invertedList.get(key).add(bag);
-    }
+  function countOf(type) {
+    if (!rules.has(type)) throw new Error(`Could not find a rule for ${type}!`);
+    const contents = rules.get(type);
+    return _.sum(
+      Array.from(contents.entries()).map(
+        ([subtype, count]) => count + count * countOf(subtype)
+      )
+    );
   }
 
-  const remainingNodes = ["shiny gold"];
-  const found = new Set();
-  while (remainingNodes.length > 0) {
-    const curr = remainingNodes.pop();
-
-    if (!invertedList.has(curr)) continue;
-    const toAdd = invertedList.get(curr);
-    for (const node of toAdd) {
-      remainingNodes.push(node);
-      found.add(node);
-    }
-  }
-  console.log(found);
+  console.log(countOf("shiny gold"));
 }
 
 function log() {

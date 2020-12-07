@@ -1,26 +1,23 @@
 import chalk from "chalk";
 import _ from "lodash";
-import { parseFile } from "./text-parsing.js";
+import { File, Grammar, Rule, Lexeme } from "@demands/text-parsing";
 
 async function main() {
-  const ast = await parseFile({
-    path: "./input.txt",
-    lexemes: [
-      { type: "person", re: /\w+/, value: (p) => p.split("") },
-      { type: "separator", re: /\n/, ignore: true },
-    ],
-    grammar: {
-      groupList: {
-        syntax: [["group", "separator", "separator", "groupList"], ["group"]],
-      },
-      group: {
-        syntax: [["person", "separator", "group"], ["person"]],
-      },
-    },
-    entry: "groupList",
-  });
+  const grammar = new Grammar([
+    new Lexeme("person", { re: /[a-z]+/, evaluate: (p) => p.read().split("") }),
+    new Lexeme("separator", { re: /\n/, ignore: true }),
+    new Rule("GroupList", {
+      syntax: [["Group", "separator", "separator", "GroupList"], ["Group"]],
+    }),
+    new Rule("Group", {
+      syntax: [["person", "separator", "Group"], ["person"]],
+    }),
+  ]);
 
-  console.log(ast.value);
+  const file = await File.loadFrom("./input.txt");
+  const ast = grammar.parse(file, "GroupList");
+
+  console.log(ast.value());
 }
 
 function log() {
